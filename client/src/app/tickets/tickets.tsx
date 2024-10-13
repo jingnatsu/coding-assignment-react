@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -8,46 +8,19 @@ import {
   Button,
   Grid,
   Box,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   TextField,
-  IconButton,
-  Card,
-  CardContent,
-  Chip,
   CircularProgress,
   Autocomplete,
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  FilterList as FilterListIcon,
-} from '@mui/icons-material';
+import { Add as AddIcon } from '@mui/icons-material';
 import { RootState } from '../../store/store';
 import AddTicketModal from '../add-ticket/add-ticket';
-import { Ticket } from '@acme/shared-models';
+import FilterSelect from '../common/components/FilterSelect';
+import { TICKET_STATUS, TicketStatusFilterType } from '../common/constant';
+import { getAssigneeName, getTicketStatusValue } from '../common/ticket-utils';
+import TicketCard from './components/TicketCard';
 
-const highlightText = (text: string, query: string) => {
-  if (!query) return text;
-  const regex = new RegExp(`(${query})`, 'gi');
-  const parts = text.split(regex);
-  return parts.map((part, index) =>
-    regex.test(part) ? (
-      <span key={index} style={{ backgroundColor: 'yellow' }}>
-        {part}
-      </span>
-    ) : (
-      part
-    )
-  );
-};
-
-export interface TicketsProps {
-  tickets: Ticket[];
-}
-
-export function Tickets() {
+export default function Tickets() {
   const navigate = useNavigate();
 
   const { tickets, loading: ticketsLoading } = useSelector(
@@ -56,9 +29,8 @@ export function Tickets() {
   const { users } = useSelector((state: RootState) => state.users);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<
-    'all' | 'open' | 'completed'
-  >('all');
+  const [statusFilter, setStatusFilter] =
+    useState<TicketStatusFilterType>('all');
   const [descriptionFilter, setDescriptionFilter] = useState('');
   const [userFilter, setUserFilter] = useState<number | null>(null);
 
@@ -69,23 +41,15 @@ export function Tickets() {
     return tickets.filter((ticket) => {
       const matchesStatus =
         statusFilter === 'all' ||
-        (ticket.completed ? 'completed' : 'open') === statusFilter;
+        getTicketStatusValue(ticket?.completed) === statusFilter;
       const matchesDescription = ticket.description
         ?.toLowerCase()
-        ?.includes(descriptionFilter.toLowerCase());
+        ?.includes(descriptionFilter?.toLowerCase());
       const matchesUser =
         userFilter === null || ticket.assigneeId === userFilter;
       return matchesStatus && matchesDescription && matchesUser;
     });
   }, [tickets, statusFilter, descriptionFilter, userFilter]);
-
-  const getAssigneeName = useMemo(() => {
-    return (assigneeId: number | null) => {
-      if (!assigneeId) return 'Unassigned';
-      const user = users.find((user) => user.id === assigneeId);
-      return user ? user.name : 'Unknown';
-    };
-  }, [users]);
 
   return (
     <>
@@ -115,11 +79,11 @@ export function Tickets() {
               value={statusFilter}
               options={[
                 { value: 'all', label: 'All' },
-                { value: 'open', label: 'Open' },
-                { value: 'completed', label: 'Completed' },
+                { value: TICKET_STATUS.INCOMPLETE, label: 'InComplete' },
+                { value: TICKET_STATUS.COMPLETE, label: 'Completed' },
               ]}
               onChange={(value) =>
-                setStatusFilter(value as 'all' | 'open' | 'completed')
+                setStatusFilter(value as TicketStatusFilterType)
               }
             />
             <Autocomplete
@@ -133,9 +97,6 @@ export function Tickets() {
               )}
               sx={{ minWidth: 150 }}
             />
-            <IconButton>
-              <FilterListIcon />
-            </IconButton>
             <TextField
               label="Search by Description"
               value={descriptionFilter}
@@ -164,7 +125,7 @@ export function Tickets() {
                     ticket={ticket}
                     onClick={() => navigate(`/${ticket.id}`)}
                     descriptionFilter={descriptionFilter}
-                    getAssigneeName={getAssigneeName}
+                    assigneeName={getAssigneeName(ticket.assigneeId, users)}
                   />
                 </Grid>
               ))}
@@ -177,73 +138,8 @@ export function Tickets() {
   );
 }
 
-const FilterSelect = memo(
-  ({
-    label,
-    value,
-    options,
-    onChange,
-  }: {
-    label: string;
-    value: string;
-    options: { value: string; label: string }[];
-    onChange: (value: string) => void;
-  }) => (
-    <FormControl sx={{ minWidth: 150 }}>
-      <InputLabel>{label}</InputLabel>
-      <Select value={value} onChange={(e) => onChange(e.target.value)}>
-        {options.map((option) => (
-          <MenuItem key={option.value} value={option.value}>
-            {option.label}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  )
-);
-
-const TicketCard = memo(
-  ({
-    ticket,
-    onClick,
-    descriptionFilter,
-    getAssigneeName,
-  }: {
-    ticket: Ticket;
-    onClick: () => void;
-    descriptionFilter: string;
-    getAssigneeName: (assigneeId: number | null) => string;
-  }) => (
-    <Card
-      variant="outlined"
-      onClick={onClick}
-      sx={{
-        cursor: 'pointer',
-        transition: 'box-shadow 0.3s',
-        '&:hover': { boxShadow: 4 },
-      }}
-    >
-      <CardContent>
-        <Typography variant="h6">
-          {highlightText(ticket.description, descriptionFilter)}
-        </Typography>
-        <Chip
-          label={ticket.completed ? 'Completed' : 'Open'}
-          color={ticket.completed ? 'success' : 'default'}
-          sx={{ mt: 1 }}
-        />
-        <Typography color="textSecondary" sx={{ mt: 1 }}>
-          Assigned to: {getAssigneeName(ticket.assigneeId)}
-        </Typography>
-      </CardContent>
-    </Card>
-  )
-);
-
 const CenteredContent = ({ children }: { children: React.ReactNode }) => (
   <Box display="flex" justifyContent="center" alignItems="center" height="100%">
     {children}
   </Box>
 );
-
-export default Tickets;

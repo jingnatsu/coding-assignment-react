@@ -10,10 +10,10 @@ const mockStore = configureStore([]);
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2', // Customize your primary color here
+      main: '#1976d2',
     },
     secondary: {
-      main: '#dc004e', // Customize your secondary color here
+      main: '#dc004e',
     },
   },
 });

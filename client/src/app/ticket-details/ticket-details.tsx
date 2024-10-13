@@ -7,33 +7,31 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppDispatch, RootState } from '../../store/store';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   Box,
   Button,
   Card,
   CardActions,
   CardContent,
-  Chip,
   CircularProgress,
   Divider,
-  FormControl,
   Grid,
-  InputLabel,
   LinearProgress,
-  MenuItem,
-  Select,
-  SelectChangeEvent,
   Typography,
 } from '@mui/material';
+
+import SelectField from '../common/components/SelectField';
 import {
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
-} from '@mui/icons-material';
+  getAssigneeName,
+  getTicketStatusLabel,
+  getTicketStatusValue,
+} from '../common/ticket-utils';
+import { TICKET_STATUS, UNASSIGNED } from '../common/constant';
+import TicketDetailsHeader from './components/TicketDetailsHeader';
 
 function TicketDetails() {
-  const { id } = useParams<{ id: string }>();
-  const ticketId = id ? parseInt(id) : null;
+  const { id: ticketId } = useParams<{ id: string }>();
 
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -47,51 +45,65 @@ function TicketDetails() {
   } = useSelector((state: RootState) => state.users);
 
   useEffect(() => {
-    if (ticketId) dispatch(fetchTicketById(ticketId));
+    if (ticketId) {
+      dispatch(fetchTicketById(parseInt(ticketId)));
+    }
   }, [dispatch, ticketId]);
 
-  const getAssigneeName = useMemo(() => {
-    if (!selectedTicket?.assigneeId) return 'Unassigned';
-    const user = users.find((user) => user.id === selectedTicket.assigneeId);
-    return user ? user.name : 'Unknown';
-  }, [selectedTicket, users]);
+  const assigneeName = useMemo(
+    () => getAssigneeName(selectedTicket?.assigneeId, users),
+    [selectedTicket, users]
+  );
 
-  const handleAssignUser = (userId: string) => {
-    if (!ticketId) return;
-    const action = userId
-      ? assignUserToTicket({ ticketId, userId: parseInt(userId) })
-      : unassignTicket({ ticketId });
-    dispatch(action);
-  };
+  const handleAssignUser = useCallback(
+    (userId: string) => {
+      if (!ticketId) {
+        return;
+      }
+      const action = userId
+        ? assignUserToTicket({
+            ticketId: parseInt(ticketId),
+            userId: parseInt(userId),
+          })
+        : unassignTicket({ ticketId: parseInt(ticketId) });
+      dispatch(action);
+    },
+    [dispatch, ticketId]
+  );
 
-  const handleStatusChange = async () => {
-    if (!ticketId) return;
+  const handleStatusChange = useCallback(async () => {
+    if (!ticketId) {
+      return;
+    }
     const method = selectedTicket?.completed ? 'DELETE' : 'PUT';
     try {
-      await dispatch(updateTicketStatus({ id: ticketId, method })).unwrap();
+      await dispatch(updateTicketStatus({ id: parseInt(ticketId), method }));
     } catch {
       console.error('Error updating status');
     }
-  };
+  }, [dispatch, selectedTicket?.completed, ticketId]);
 
-  if (loading) return <CircularProgress />;
-  if (error) return <Typography color="error">{error}</Typography>;
-  if (!selectedTicket) return <Typography>No ticket found</Typography>;
+  if (loading) {
+    return <CircularProgress />;
+  }
+  if (error) {
+    return <Typography color="error">{error}</Typography>;
+  }
+  if (!selectedTicket) {
+    return <Typography>No ticket found</Typography>;
+  }
+
+  const isLoading = statusUpdating || assigning;
 
   return (
     <Grid container spacing={3} justifyContent="center" sx={{ padding: 2 }}>
       <Grid item xs={12} md={10}>
         <Card elevation={3}>
-          {statusUpdating || assigning ? (
-            <LinearProgress />
-          ) : (
-            <Box sx={{ height: 2 }} />
-          )}
-
+          <Box sx={{ height: 2 }}>{isLoading && <LinearProgress />}</Box>
           <CardContent>
-            <Header selectedTicket={selectedTicket} />
+            <TicketDetailsHeader selectedTicket={selectedTicket} />
             <Typography color="textSecondary" mb={2}>
-              Assignee: {getAssigneeName}
+              Assignee: {assigneeName}
             </Typography>
 
             <Divider sx={{ my: 2 }} />
@@ -100,12 +112,18 @@ function TicketDetails() {
               <Grid item xs={12} md={6}>
                 <SelectField
                   label="Update Status"
-                  value={selectedTicket.completed ? 'complete' : 'incomplete'}
+                  value={getTicketStatusValue(selectedTicket.completed)}
                   onChange={handleStatusChange}
                   disabled={statusUpdating}
                   options={[
-                    { value: 'complete', label: 'Mark as Complete' },
-                    { value: 'incomplete', label: 'Mark as Incomplete' },
+                    {
+                      value: TICKET_STATUS.COMPLETE,
+                      label: getTicketStatusLabel(true),
+                    },
+                    {
+                      value: TICKET_STATUS.INCOMPLETE,
+                      label: getTicketStatusLabel(false),
+                    },
                   ]}
                 />
               </Grid>
@@ -114,10 +132,10 @@ function TicketDetails() {
                 <SelectField
                   label="Update Assignee"
                   value={selectedTicket.assigneeId || ''}
-                  onChange={(e) => handleAssignUser(e.target.value)}
+                  onChange={(e) => handleAssignUser(e.target.value as string)}
                   disabled={assigning || userLoading}
                   options={[
-                    { value: '', label: 'Unassigned' },
+                    { value: '', label: UNASSIGNED },
                     ...users.map((user) => ({
                       value: user.id,
                       label: user.name,
@@ -146,47 +164,3 @@ function TicketDetails() {
 }
 
 export default TicketDetails;
-
-const Header = ({
-  selectedTicket,
-}: {
-  selectedTicket: RootState['tickets']['selectedTicket'];
-}) => (
-  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-    <Typography variant="h5">
-      {`Ticket #${selectedTicket?.id}: ${selectedTicket?.description}`}
-    </Typography>
-    <Chip
-      label={selectedTicket?.completed ? 'Completed' : 'Open'}
-      color={selectedTicket?.completed ? 'success' : 'default'}
-      icon={selectedTicket?.completed ? <CheckCircleIcon /> : <CancelIcon />}
-    />
-  </Box>
-);
-
-interface SelectFieldProps {
-  label: string;
-  value: string | number;
-  onChange: (event: SelectChangeEvent<any>, child: React.ReactNode) => void;
-  disabled?: boolean;
-  options: { value: string | number; label: string }[];
-}
-
-const SelectField = ({
-  label,
-  value,
-  onChange,
-  disabled = false,
-  options,
-}: SelectFieldProps) => (
-  <FormControl fullWidth margin="normal">
-    <InputLabel>{label}</InputLabel>
-    <Select value={value} onChange={onChange} disabled={disabled}>
-      {options.map((option) => (
-        <MenuItem key={option.value} value={option.value}>
-          {option.label}
-        </MenuItem>
-      ))}
-    </Select>
-  </FormControl>
-);

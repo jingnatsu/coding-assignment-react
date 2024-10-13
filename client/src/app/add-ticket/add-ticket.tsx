@@ -26,8 +26,8 @@ const AddTicketModal = ({ open, onClose }: AddTicketModalProps) => {
   const handleAddTicket = useCallback(async () => {
     if (!description.trim()) return;
     await dispatch(createTicket(description));
-    setDescription(''); // Reset input field
-    onClose(); // Close the modal after adding
+    setDescription('');
+    onClose();
   }, [description, dispatch, onClose]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
