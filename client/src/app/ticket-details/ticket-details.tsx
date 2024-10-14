@@ -7,8 +7,9 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppDispatch, RootState } from '../../store/store';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -16,6 +17,7 @@ import {
   CardContent,
   CircularProgress,
   Divider,
+  FormControl,
   Grid,
   LinearProgress,
   Typography,
@@ -27,11 +29,14 @@ import {
   getTicketStatusLabel,
   getTicketStatusValue,
 } from '../common/ticket-utils';
-import { TICKET_STATUS, UNASSIGNED } from '../common/constant';
+import { TICKET_STATUS, UNASSIGNED, UNASSIGNED_ID } from '../common/constant';
 import TicketDetailsHeader from './components/TicketDetailsHeader';
+import { getUserById } from '../../store/usersSlice';
+import ErrorBoxMessage from '../common/components/ErrorBoxMessage';
 
 function TicketDetails() {
   const { id: ticketId } = useParams<{ id: string }>();
+  const [errorMessage, setErrorMessage] = useState('');
 
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -56,17 +61,35 @@ function TicketDetails() {
   );
 
   const handleAssignUser = useCallback(
-    (userId: string) => {
-      if (!ticketId) {
-        return;
-      }
-      const action = userId
-        ? assignUserToTicket({
+    async (userId: string) => {
+      if (!ticketId || !userId) return;
+
+      try {
+        // Handle user unassignment if userId is not provided
+        if (userId === '-1') {
+          await dispatch(unassignTicket({ ticketId: parseInt(ticketId) }));
+          setErrorMessage('');
+          return;
+        }
+
+        // Check if the user exists by fetching the user by ID
+        const user = await dispatch(getUserById(parseInt(userId))).unwrap();
+        if (!user) {
+          setErrorMessage('Not existing user, please check');
+          return;
+        }
+
+        await dispatch(
+          assignUserToTicket({
             ticketId: parseInt(ticketId),
             userId: parseInt(userId),
           })
-        : unassignTicket({ ticketId: parseInt(ticketId) });
-      dispatch(action);
+        ).unwrap();
+
+        setErrorMessage(''); // Clear any previous error if successful
+      } catch (error) {
+        setErrorMessage('Error fetching user or updating assignee');
+      }
     },
     [dispatch, ticketId]
   );
@@ -79,29 +102,37 @@ function TicketDetails() {
     try {
       await dispatch(updateTicketStatus({ id: parseInt(ticketId), method }));
     } catch {
-      console.error('Error updating status');
+      setErrorMessage('Error when chaging status');
     }
   }, [dispatch, selectedTicket?.completed, ticketId]);
 
   if (loading) {
     return <CircularProgress />;
   }
-  if (error) {
-    return <Typography color="error">{error}</Typography>;
+  if (error || userError) {
+    return <Typography color="error">{error || userError}</Typography>;
   }
   if (!selectedTicket) {
     return <Typography>No ticket found</Typography>;
   }
 
-  const isLoading = statusUpdating || assigning;
+  const isUpdating = statusUpdating || assigning;
 
   return (
     <Grid container spacing={3} justifyContent="center" sx={{ padding: 2 }}>
       <Grid item xs={12} md={10}>
         <Card elevation={3}>
-          <Box sx={{ height: 2 }}>{isLoading && <LinearProgress />}</Box>
+          <Box sx={{ height: 2 }}>{isUpdating && <LinearProgress />}</Box>
           <CardContent>
             <TicketDetailsHeader selectedTicket={selectedTicket} />
+
+            {errorMessage && (
+              <ErrorBoxMessage
+                errorMessage={errorMessage}
+                onClose={() => setErrorMessage('')}
+              />
+            )}
+
             <Typography color="textSecondary" mb={2}>
               Assignee: {assigneeName}
             </Typography>
@@ -110,38 +141,42 @@ function TicketDetails() {
 
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
-                <SelectField
-                  label="Update Status"
-                  value={getTicketStatusValue(selectedTicket.completed)}
-                  onChange={handleStatusChange}
-                  disabled={statusUpdating}
-                  options={[
-                    {
-                      value: TICKET_STATUS.COMPLETE,
-                      label: getTicketStatusLabel(true),
-                    },
-                    {
-                      value: TICKET_STATUS.INCOMPLETE,
-                      label: getTicketStatusLabel(false),
-                    },
-                  ]}
-                />
+                <FormControl fullWidth margin="normal">
+                  <SelectField
+                    label="Update Status"
+                    value={getTicketStatusValue(selectedTicket.completed)}
+                    onChange={handleStatusChange}
+                    disabled={statusUpdating}
+                    options={[
+                      {
+                        value: TICKET_STATUS.COMPLETE,
+                        label: getTicketStatusLabel(true),
+                      },
+                      {
+                        value: TICKET_STATUS.INCOMPLETE,
+                        label: getTicketStatusLabel(false),
+                      },
+                    ]}
+                  />
+                </FormControl>
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <SelectField
-                  label="Update Assignee"
-                  value={selectedTicket.assigneeId || ''}
-                  onChange={(e) => handleAssignUser(e.target.value as string)}
-                  disabled={assigning || userLoading}
-                  options={[
-                    { value: '', label: UNASSIGNED },
-                    ...users.map((user) => ({
-                      value: user.id,
-                      label: user.name,
-                    })),
-                  ]}
-                />
+                <FormControl fullWidth margin="normal">
+                  <SelectField
+                    label="Update Assignee"
+                    value={selectedTicket.assigneeId || ''}
+                    onChange={(e) => handleAssignUser(e.target.value as string)}
+                    disabled={assigning || userLoading}
+                    options={[
+                      { value: UNASSIGNED_ID, label: UNASSIGNED },
+                      ...users.map((user) => ({
+                        value: user.id,
+                        label: user.name,
+                      })),
+                    ]}
+                  />
+                </FormControl>
               </Grid>
             </Grid>
           </CardContent>

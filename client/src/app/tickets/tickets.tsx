@@ -11,14 +11,19 @@ import {
   TextField,
   CircularProgress,
   Autocomplete,
+  FormControl,
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { RootState } from '../../store/store';
 import AddTicketModal from '../add-ticket/add-ticket';
-import FilterSelect from '../common/components/FilterSelect';
-import { TICKET_STATUS, TicketStatusFilterType } from '../common/constant';
+import {
+  STATUS_FILTER_OPTIONS,
+  TICKET_STATUS,
+  TicketStatusFilterType,
+} from '../common/constant';
 import { getAssigneeName, getTicketStatusValue } from '../common/ticket-utils';
 import TicketCard from './components/TicketCard';
+import SelectField from '../common/components/SelectField';
 
 export default function Tickets() {
   const navigate = useNavigate();
@@ -74,18 +79,17 @@ export default function Tickets() {
 
         <Grid item xs={12}>
           <Box display="flex" alignItems="center" gap={2}>
-            <FilterSelect
-              label="Status"
-              value={statusFilter}
-              options={[
-                { value: 'all', label: 'All' },
-                { value: TICKET_STATUS.INCOMPLETE, label: 'InComplete' },
-                { value: TICKET_STATUS.COMPLETE, label: 'Completed' },
-              ]}
-              onChange={(value) =>
-                setStatusFilter(value as TicketStatusFilterType)
-              }
-            />
+            <FormControl>
+              <SelectField
+                label="Status"
+                value={statusFilter}
+                options={STATUS_FILTER_OPTIONS}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as TicketStatusFilterType)
+                }
+              />
+            </FormControl>
+
             <Autocomplete
               options={users}
               getOptionLabel={(user) => user.name}

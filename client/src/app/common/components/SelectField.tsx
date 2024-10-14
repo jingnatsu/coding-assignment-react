@@ -1,16 +1,10 @@
-import { memo } from 'react';
-import {
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  SelectChangeEvent,
-} from '@mui/material';
+import { ChangeEvent, memo } from 'react';
+import { InputLabel, NativeSelect } from '@mui/material';
 
 interface SelectFieldProps {
   label: string;
   value: string | number;
-  onChange: (event: SelectChangeEvent<unknown>, child: React.ReactNode) => void;
+  onChange: (event: ChangeEvent<HTMLSelectElement>) => void;
   disabled?: boolean;
   options: { value: string | number; label: string }[];
 }
@@ -22,16 +16,27 @@ const SelectField = ({
   disabled = false,
   options,
 }: SelectFieldProps) => (
-  <FormControl fullWidth margin="normal">
-    <InputLabel>{label}</InputLabel>
-    <Select value={value} onChange={onChange} disabled={disabled}>
+  <>
+    <InputLabel variant="standard" htmlFor={`uncontrolled-native-${label}`}>
+      {label}
+    </InputLabel>
+    <NativeSelect
+      id={`uncontrolled-native-${label}`}
+      defaultValue={value}
+      onChange={onChange}
+      disabled={disabled}
+      inputProps={{
+        name: `${label}`,
+        id: `uncontrolled-native-${label}`,
+      }}
+    >
       {options.map((option) => (
-        <MenuItem key={option.value} value={option.value}>
+        <option key={option.value} value={option.value}>
           {option.label}
-        </MenuItem>
+        </option>
       ))}
-    </Select>
-  </FormControl>
+    </NativeSelect>
+  </>
 );
 
 export default memo(SelectField);

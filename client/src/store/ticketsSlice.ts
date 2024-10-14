@@ -120,35 +120,7 @@ export const updateTicketStatus = createAsyncThunk(
 const ticketsSlice = createSlice({
   name: 'tickets',
   initialState,
-  reducers: {
-    addTicket: (
-      state,
-      action: PayloadAction<{ description: string; assigneeId: number | null }>
-    ) => {
-      const newTicket: Ticket = {
-        id: Date.now(),
-        description: action.payload.description,
-        assigneeId: action.payload.assigneeId,
-        completed: false,
-      };
-      state.tickets.push(newTicket);
-    },
-    updateTicket: (
-      state,
-      action: PayloadAction<{
-        id: number;
-        assigneeId: number | null;
-        completed: boolean;
-      }>
-    ) => {
-      const { id, assigneeId, completed } = action.payload;
-      const ticket = state.tickets.find((ticket) => ticket.id === id);
-      if (ticket) {
-        ticket.assigneeId = assigneeId;
-        ticket.completed = completed;
-      }
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
       .addCase(fetchTickets.pending, (state) => {
@@ -279,10 +251,8 @@ const ticketsSlice = createSlice({
       )
       .addCase(updateTicketStatus.rejected, (state, action) => {
         state.statusUpdating = false; // Reset loading state on failure
-        //state.error = action.payload as string; // Use error message from rejectWithValue
       });
   },
 });
 
-export const { addTicket, updateTicket } = ticketsSlice.actions;
 export default ticketsSlice.reducer;

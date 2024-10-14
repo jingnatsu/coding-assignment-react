@@ -2,11 +2,8 @@ import { memo } from 'react';
 import { Box, Chip, Typography } from '@mui/material';
 import { RootState } from '../../../store/store';
 import { getTicketStatusLabel } from '../../common/ticket-utils';
-import {
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
-} from '@mui/icons-material';
-
+import CheckCircle from '@mui/icons-material/CheckCircle';
+import PendingActionsIcon from '@mui/icons-material/PendingActions';
 interface TicketDetailsHeaderProps {
   selectedTicket: RootState['tickets']['selectedTicket'];
 }
@@ -19,7 +16,9 @@ const TicketDetailsHeader = ({ selectedTicket }: TicketDetailsHeaderProps) => (
     <Chip
       label={getTicketStatusLabel(!!selectedTicket?.completed)}
       color={selectedTicket?.completed ? 'success' : 'default'}
-      icon={selectedTicket?.completed ? <CheckCircleIcon /> : <CancelIcon />}
+      icon={
+        selectedTicket?.completed ? <CheckCircle /> : <PendingActionsIcon />
+      }
     />
   </Box>
 );

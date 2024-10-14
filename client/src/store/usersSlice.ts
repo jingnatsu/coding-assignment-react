@@ -23,6 +23,17 @@ export const fetchUsers = createAsyncThunk('users/fetchUsers', async () => {
   return data;
 });
 
+export const getUserById = createAsyncThunk(
+  'users/getUserById',
+  async (userId: number, { rejectWithValue }) => {
+    const response = await fetch(`/api/users/${userId}`);
+    if (!response.ok) {
+      const errorMessage = await response.text();
+      return rejectWithValue(`Failed: ${errorMessage}`);
+    }
+    return await response.json();
+  }
+);
 const usersSlice = createSlice({
   name: 'users',
   initialState,
@@ -38,6 +49,20 @@ const usersSlice = createSlice({
         state.users = action.payload;
       })
       .addCase(fetchUsers.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch users';
+      })
+      .addCase(getUserById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(
+        getUserById.fulfilled,
+        (state, action: PayloadAction<{ userId: number }>) => {
+          state.loading = false;
+        }
+      )
+      .addCase(getUserById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch users';
       });

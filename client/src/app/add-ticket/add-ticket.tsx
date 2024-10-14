@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, memo, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Button,
@@ -34,7 +34,10 @@ const AddTicketModal = ({ open, onClose }: AddTicketModalProps) => {
     setDescription(e.target.value);
   }, []);
 
-  const isDisabled = loading || !description.trim();
+  const isDisabledSubmit = useMemo(
+    () => loading || !description?.trim(),
+    [loading, description]
+  );
 
   return (
     <Dialog open={open} onClose={onClose}>
@@ -55,7 +58,7 @@ const AddTicketModal = ({ open, onClose }: AddTicketModalProps) => {
         <Button
           onClick={handleAddTicket}
           color="primary"
-          disabled={isDisabled}
+          disabled={isDisabledSubmit}
           startIcon={loading ? <CircularProgress size={20} /> : null}
         >
           {loading ? 'Adding...' : 'Add Ticket'}
